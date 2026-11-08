@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c766b">
+  <meta name="description" content="Démonstration de détection des défauts PCB par YOLO11n. Inspection visuelle, analyse par lot et rapports locaux.">
+  <title>PCB Inspect — Inspection visuelle assistée</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%230c766b'/%3E%3Cpath d='M10 12h12v8h8M10 28h12v-8M16 6v6M16 28v6' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
+  <script>try{const t=localStorage.getItem('pcb-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch{}</script>
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <script type="module" src="/static/js/app.js"></script>
+</head>
+<body>
+  <svg class="svg-definitions" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+    <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 1v5m6-5v5M9 18v5m6-5v5M1 9h5m-5 6h5m12-6h5m-5 6h5M10 10h4v4h-4z"/></symbol>
+    <symbol id="i-scan" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M3 16v3a2 2 0 0 0 2 2h3m8 0h3a2 2 0 0 0 2-2v-3M3 12h18"/><rect x="8" y="7" width="8" height="10" rx="1"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 11a9 9 0 1 1 2 7M3 4v7h7m2-4v5l3 2"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3M4 4l2 2m12 12 2 2M4 20l2-2M18 6l2-2"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 4 12 8-12 8z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H5v18h14V8zM14 3v6h5"/><path d="M8 14h8m-8 3h6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="m12 3 10 18H2zM12 9v5m0 3v1"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m8 0h5v-5M8 8h8v8H8z"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v13m-5-5 5 5 5-5M4 17v4h16v-4"/></symbol>
+  </defs></svg>
+
+  <a class="skip-link" href="#main">Aller au contenu</a>
+  <header class="header">
+    <a href="/" class="brand" aria-label="PCB Inspect, accueil"><span class="brand-mark"><svg><use href="#i-chip"/></svg></span><span>PCB<span class="brand-light"> Inspect</span><small>VISION ASSISTÉE PAR IA</small></span></a>
+    <nav class="navigation" aria-label="Navigation principale">
+      <a href="#inspection" class="nav-link active" data-view="inspection" aria-current="page"><svg><use href="#i-scan"/></svg>Inspection</a>
+      <a href="#history" class="nav-link" data-view="history"><svg><use href="#i-history"/></svg>Historique <span id="history-count" class="nav-count">0</span></a>
+      <a href="#about" class="nav-link" data-view="about"><svg><use href="#i-info"/></svg>À propos du modèle</a>
+    </nav>
+    <div class="header-actions"><span id="model-status" class="status"><span class="status-dot"></span><span>Connexion…</span></span><button id="theme-toggle" class="icon-button" aria-label="Changer le thème" title="Changer le thème"><svg><use href="#i-sun"/></svg></button></div>
+  </header>
+
+  <main id="main" class="main">
+    <section id="view-inspection" class="view">
+      <div class="page-heading"><div><p class="eyebrow">ESPACE D’INSPECTION <span> / </span> YOLO11n</p><h1>Le détail fait la différence.</h1><p class="subtitle">Détectez, localisez et examinez les défauts de vos cartes électroniques.</p></div><span class="outline-badge"><span></span> Démonstration de recherche</span></div>
+      <div class="metrics" aria-label="Performances sur le jeu de test">
+        <div class="metric"><span>Précision</span><strong>91<span>%</span></strong><small>Jeu de test · Détections pertinentes</small><svg class="metric-icon"><use href="#i-scan"/></svg></div>
+        <div class="metric"><span>Rappel</span><strong>91<span>%</span></strong><small>Jeu de test · Défauts retrouvés</small><svg class="metric-icon"><use href="#i-eye"/></svg></div>
+        <div class="metric"><span>mAP à 50 %</span><strong>90,5<span>%</span></strong><small>Jeu de test · Localisation</small><svg class="metric-icon"><use href="#i-check"/></svg></div>
+        <div class="metric"><span>Classes de défauts</span><strong>06</strong><small>Une inspection, six catégories</small><svg class="metric-icon"><use href="#i-chip"/></svg></div>
+      </div>
+
+      <div id="error-banner" class="error-banner" role="alert" hidden><svg><use href="#i-alert"/></svg><span id="error-text"></span><button id="dismiss-error" aria-label="Fermer le message">×</button></div>
+      <div class="inspection-layout">
+        <aside class="panel settings-panel" aria-labelledby="settings-title">
+          <div class="panel-heading"><h2 id="settings-title"><svg><use href="#i-scan"/></svg>Préparer l’analyse</h2><span class="step-tag">01</span></div>
+          <div class="settings-body">
+            <label for="file-input" class="field-label">Images à inspecter</label>
+            <div id="drop-zone" class="drop-zone" tabindex="0" role="button" aria-label="Importer des images ou déposer des fichiers"><div class="upload-icon"><svg><use href="#i-upload"/></svg></div><strong>Déposez vos images ici</strong><span>ou <span class="text-accent">parcourir les fichiers</span></span><small>JPG, PNG, BMP, TIFF · <span id="upload-limit">25</span> Mo max / image</small></div>
+            <input id="file-input" type="file" accept=".jpg,.jpeg,.png,.bmp,.tif,.tiff" multiple hidden>
+            <button id="example-button" class="button button-secondary example-button" hidden><svg><use href="#i-play"/></svg>Essayer avec un exemple</button>
+            <div id="queue" class="queue" aria-label="Images sélectionnées"></div>
+            <div class="divider"></div>
+            <div class="field-row"><label for="confidence" class="field-label">Seuil de confiance</label><output id="confidence-value" for="confidence">25 %</output></div>
+            <input id="confidence" type="range" min="0.05" max="0.95" step="0.01" value="0.25">
+            <div class="range-labels"><span>Plus de détections</span><span>Plus de certitude</span></div>
+            <details class="advanced"><summary>Paramètres avancés <span>+</span></summary><div class="field-row"><label for="iou">Seuil IoU</label><output id="iou-value" for="iou">0,70</output></div><input id="iou" type="range" min="0" max="1" step="0.01" value="0.7"><p>Les boîtes de même classe qui se chevauchent au-delà de ce seuil sont éliminées au profit du meilleur score (NMS).</p></details>
+            <button id="analyze-button" class="button button-primary" disabled><svg><use href="#i-scan"/></svg><span>Lancer l’analyse</span><svg class="button-arrow"><use href="#i-arrow"/></svg></button>
+            <div id="progress-area" class="progress-area" hidden><div class="field-row"><span id="progress-label">Analyse en cours…</span><span id="progress-count"></span></div><progress id="batch-progress" value="0" max="1">0 %</progress></div>
+            <p class="privacy-note"><svg><use href="#i-check"/></svg>Images traitées localement, sans conservation sur le serveur.</p>
+          </div>
+          <div class="model-summary"><span class="model-avatar"><svg><use href="#i-chip"/></svg></span><div><strong>YOLO11n <span id="device-label">CPU</span></strong><small>Résolution d’inférence : 1280 px</small></div></div>
+        </aside>
+
+        <section class="panel workspace" aria-labelledby="workspace-title">
+          <div class="panel-heading"><h2 id="workspace-title"><svg><use href="#i-eye"/></svg>Vue d’inspection</h2><span id="workspace-state" class="muted-label">En attente d’une image</span></div>
+          <div id="empty-state" class="empty-state">
+            <div class="pcb-illustration" aria-hidden="true"><svg viewBox="0 0 260 190"><g fill="none" stroke="currentColor" stroke-width="2"><rect x="47" y="26" width="166" height="138" rx="11"/><rect x="99" y="65" width="62" height="60" rx="5"/><path d="M111 54v11m13-11v11m13-11v11m13-11v11M111 125v11m13-11v11m13-11v11m13-11v11M88 77h11m-11 12h11m-11 13h11m-11 12h11m62-37h11m-11 12h11m-11 13h11m-11 12h11M62 46h17v31h9M62 144h17v-30h9m84-37h10V46h17m-27 68h10v30h17M124 54V39h30m-30 97v14h-19"/><circle cx="62" cy="46" r="4"/><circle cx="62" cy="144" r="4"/><circle cx="199" cy="46" r="4"/><circle cx="199" cy="144" r="4"/><circle cx="158" cy="39" r="4"/><circle cx="101" cy="150" r="4"/><path d="m117 97 9 9 17-20" stroke-width="3"/></g><g fill="none" stroke="currentColor" opacity=".35"><path d="M28 52H13v24m219-24h15v24M13 116v24h15m219-24v24h-15"/><path d="M0 95h260" stroke-dasharray="4 5"/></g></svg><span class="scan-label">PRÊT POUR L’INSPECTION</span></div>
+            <h3>Une nouvelle perspective sur vos PCB.</h3><p>Importez une image pour visualiser les défauts,<br>jusqu’au plus petit détail.</p><div class="empty-steps"><span><b>1</b> Importez</span><span class="step-line"></span><span><b>2</b> Analysez</span><span class="step-line"></span><span><b>3</b> Inspectez</span></div>
+          </div>
+          <div id="viewer-area" hidden>
+            <div class="viewer-toolbar"><div class="viewer-filename"><svg><use href="#i-file"/></svg><strong id="image-filename"></strong><span id="image-dimensions"></span></div><div class="zoom-controls"><button id="zoom-out" class="icon-button" aria-label="Réduire le zoom"><svg><use href="#i-minus"/></svg></button><output id="zoom-label">100 %</output><button id="zoom-in" class="icon-button" aria-label="Agrandir"><svg><use href="#i-plus"/></svg></button><button id="zoom-fit" class="icon-button" aria-label="Ajuster l’image à la vue"><svg><use href="#i-fit"/></svg></button></div></div>
+            <div id="canvas-container" class="canvas-container"><canvas id="inspection-canvas" tabindex="0" role="img" aria-label="Image inspectée ; utilisez plus et moins pour zoomer et les flèches pour déplacer l’image"></canvas><div id="loading-overlay" class="loading-overlay" hidden><span class="spinner"></span><strong>Inspection en cours</strong><span>Recherche des six catégories de défauts…</span></div></div>
+            <div class="viewer-caption"><span>Molette : zoom · Glisser : déplacer · Double-clic : ajuster</span><button id="toggle-boxes" class="text-button" aria-pressed="true"><svg><use href="#i-eye"/></svg>Boîtes visibles</button></div>
+          </div>
+          <div id="result-summary" class="result-summary" aria-live="polite" hidden><div><span id="verdict" class="verdict"></span><small id="inference-time"></small></div><div class="export-actions"><button data-export="png" class="button button-small"><svg><use href="#i-download"/></svg>PNG</button><button data-export="json" class="button button-small">JSON</button><button data-export="csv" class="button button-small">CSV</button><button data-export="report" class="button button-small"><svg><use href="#i-file"/></svg>Rapport</button></div></div>
+        </section>
+      </div>
+
+      <div id="details-area" class="details-layout" hidden>
+        <section class="panel detections-panel"><div class="panel-heading"><h2>Détections <span id="detection-count" class="count-badge">0</span></h2><span class="muted-label">Coordonnées de l’image d’origine</span></div><div class="table-scroll"><table id="detections-table"><thead><tr><th scope="col">N°</th><th scope="col" aria-sort="none"><button data-sort="class_name">Classe ↕</button></th><th scope="col" aria-sort="descending"><button data-sort="confidence">Confiance ↕</button></th><th scope="col" aria-sort="none"><button data-sort="position">Position (x, y) ↕</button></th><th scope="col" aria-sort="none"><button data-sort="size">Taille (l × h) ↕</button></th></tr></thead><tbody id="detections-body"></tbody></table></div></section>
+        <section class="panel class-panel"><div class="panel-heading"><h2>Répartition par classe</h2><span class="muted-label">Cliquer pour filtrer</span></div><div id="class-legend" class="class-legend"></div></section>
+      </div>
+      <section id="batch-area" class="panel batch-area" hidden><div class="panel-heading"><h2>Récapitulatif du lot</h2><span id="batch-label" class="muted-label"></span></div><div class="table-scroll"><table><thead><tr><th>Image</th><th>Défauts</th><th>Verdict</th><th>État</th></tr></thead><tbody id="batch-body"></tbody></table></div></section>
+      <div class="notice"><svg><use href="#i-info"/></svg><p><strong>Un outil de démonstration, une lecture éclairée.</strong> Entraîné sur des défauts artificiels ; testé sur deux cartes seulement. Ne remplace pas un contrôle qualité industriel.</p><a href="#about">Comprendre les limites <svg><use href="#i-arrow"/></svg></a></div>
+    </section>
+
+    <section id="view-history" class="view" hidden><div class="page-heading"><div><p class="eyebrow">VOTRE SESSION</p><h1>Historique des inspections</h1><p class="subtitle">Retrouvez vos analyses et reprenez l’inspection d’un clic.</p></div><button id="clear-history" class="button button-secondary">Effacer l’historique</button></div><p class="session-note">Conservé uniquement en mémoire dans cet onglet. Un rechargement efface la session.</p><div id="history-grid" class="history-grid"></div></section>
+
+    <section id="view-about" class="view" hidden><div class="page-heading"><div><p class="eyebrow">TRANSPARENCE & MÉTHODOLOGIE</p><h1>À propos du modèle</h1><p class="subtitle">Comprendre ce que le modèle sait détecter, et les limites de ses résultats.</p></div><span class="outline-badge">YOLO11n · bestvff.pt</span></div><div class="about-layout"><section class="panel about-card"><p class="eyebrow">LE MODÈLE</p><h2>Six défauts. Une seule analyse.</h2><p>YOLO11n localise les anomalies dans les images de cartes électroniques. L’inférence utilise une résolution de <strong>1280 pixels</strong> pour préserver les défauts de petite taille. Les boîtes sont restituées dans les coordonnées de l’image d’origine, après correction de son orientation EXIF.</p><dl class="model-facts"><div><dt>Architecture</dt><dd>YOLO11n / Ultralytics</dd></div><div><dt>Jeu de données</dt><dd>Akhatova / PCB Defects</dd></div><div><dt>mAP50–95 global</dt><dd>0,469</dd></div><div><dt>Appareil</dt><dd id="about-device">CPU / CUDA automatique</dd></div></dl></section><section class="panel about-card"><p class="eyebrow">PÉRIMÈTRE DE VALIDATION</p><h2>Des résultats à contextualiser.</h2><ul class="limits-list"><li>Les défauts du dataset sont <strong>artificiels</strong> : ils ne couvrent pas toute la variabilité de la production réelle.</li><li>Le jeu de test porte sur <strong>deux cartes seulement</strong>. La généralisation à de nouvelles cartes reste à évaluer.</li><li>Le cuivre parasite présente une précision de <strong>0,61</strong> ; l’excroissance, un rappel de <strong>0,79</strong>.</li><li>« Aucun défaut détecté » ne garantit pas une carte sans défaut. Le score de confiance n’est pas une probabilité calibrée.</li></ul></section></div><section class="panel"><div class="panel-heading"><h2>Métriques de test par classe</h2><span class="muted-label">Valeurs communiquées uniquement</span></div><div class="table-scroll"><table><thead><tr><th>ID</th><th>Classe</th><th>Description</th><th>Précision</th><th>Rappel</th><th>mAP50</th></tr></thead><tbody id="model-metrics-body"></tbody><tfoot><tr><th colspan="3">Global</th><td>0,91</td><td>0,91</td><td>0,905</td></tr></tfoot></table></div><p class="table-note">— : valeur non communiquée. Aucune métrique par classe n’a été estimée ou inventée.</p></section><div class="notice"><svg><use href="#i-alert"/></svg><p><strong>Outil de démonstration, ne remplace pas un contrôle qualité industriel.</strong></p></div></section>
+  </main>
+  <footer class="footer"><span><span class="footer-dot"></span> PCB Inspect <span class="footer-divider">/</span> Inspection visuelle assistée</span><span>YOLO11n <span class="footer-divider">·</span> Inférence locale <span class="footer-divider">·</span> v1.0</span></footer>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>
